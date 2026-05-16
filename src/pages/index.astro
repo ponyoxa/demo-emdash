@@ -29,12 +29,11 @@ Astro.cache.set(cacheHint);
 const visiblePosts = posts.slice(0, POSTS_PER_PAGE);
 const hasMorePosts = posts.length > POSTS_PER_PAGE;
 
-// Find the first post with a featured image for the hero
-const featuredPost = visiblePosts.find((p) => p.data.featured_image);
-const featuredIndex = featuredPost ? visiblePosts.indexOf(featuredPost) : -1;
-
-// Get remaining posts (exclude featured if found, limit to 6 for grid)
-const gridPosts = visiblePosts.filter((_, i) => i !== featuredIndex).slice(0, 6);
+// Latest post becomes the hero regardless of whether it has a featured image.
+// The template adapts: image+text two-column layout when present, text-only
+// hero otherwise.
+const featuredPost = visiblePosts[0];
+const gridPosts = visiblePosts.slice(1, 7);
 
 // Single batched query for tags across the featured post + grid posts.
 // Avoids the N+1 pattern of calling getEntryTerms() per entry.
@@ -85,15 +84,22 @@ function formatDate(date: Date | null | undefined) {
 			</section>
 		) : (
 			<div class="home-content">
-				{/* Featured Post - Side by side */}
+				{/* Featured Post - Side by side when image present, text-only otherwise */}
 				{featuredPost && (
 					<section class="featured-section">
-						<div class="featured-grid">
-							<a href={`/posts/${featuredPost.id}`} class="featured-image-link">
-								<div class="featured-image">
-									<Image image={featuredPost.data.featured_image} />
-								</div>
-							</a>
+						<div
+							class:list={[
+								"featured-grid",
+								!featuredPost.data.featured_image && "featured-grid--text-only",
+							]}
+						>
+							{featuredPost.data.featured_image && (
+								<a href={`/posts/${featuredPost.id}`} class="featured-image-link">
+									<div class="featured-image">
+										<Image image={featuredPost.data.featured_image} />
+									</div>
+								</a>
+							)}
 							<div class="featured-content">
 								<div class="featured-meta">
 									{featuredBylines.length > 0 && (
@@ -205,6 +211,17 @@ function formatDate(date: Date | null | undefined) {
 		grid-template-columns: repeat(3, 1fr);
 		gap: var(--spacing-8);
 		align-items: center;
+	}
+
+	/* Text-only hero: single column, comfortable measure, larger title */
+	.featured-grid--text-only {
+		grid-template-columns: minmax(0, var(--content-width));
+		justify-content: center;
+		gap: 0;
+	}
+
+	.featured-grid--text-only .featured-title {
+		font-size: clamp(var(--font-size-3xl), 5vw, var(--font-size-5xl));
 	}
 
 	.featured-image-link {
